@@ -7,6 +7,7 @@ import { getActiveWindow } from '../../../base/browser/dom.js';
 import { BugIndicatingError } from '../../../base/common/errors.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import { EditorOption } from '../../common/config/editorOptions.js';
+import { CursorColumns } from '../../common/core/cursorColumns.js';
 import type { IViewLineTokens } from '../../common/tokens/lineTokens.js';
 import type { ViewportData } from '../../common/viewLayout/viewLinesViewportData.js';
 import type { ViewLineRenderingData } from '../../common/viewModel.js';
@@ -143,12 +144,12 @@ export class FullFileRenderStrategy extends Disposable implements IGpuRenderStra
 
 		let tokens: IViewLineTokens;
 
-		const activeWindow = getActiveWindow();
+		const dpr = getActiveWindow().devicePixelRatio;
 
 		// Update scroll offset
-		const scrollTop = this._context.viewLayout.getCurrentScrollTop() * activeWindow.devicePixelRatio;
 		const scrollOffsetBuffer = this._scrollOffsetValueBuffers[this._activeDoubleBufferIndex];
-		scrollOffsetBuffer[1] = scrollTop;
+		scrollOffsetBuffer[0] = this._context.viewLayout.getCurrentScrollLeft() * dpr;
+		scrollOffsetBuffer[1] = this._context.viewLayout.getCurrentScrollTop() * dpr;
 		this._device.queue.writeBuffer(this._scrollOffsetBindBuffer, 0, scrollOffsetBuffer);
 
 		// Update cell data
@@ -227,22 +228,21 @@ export class FullFileRenderStrategy extends Disposable implements IGpuRenderStra
 						continue;
 					}
 					if (chars === '\t') {
-						// TODO: Pull actual tab size
-						xOffset += 3;
+						xOffset = CursorColumns.nextRenderTabStop(x + xOffset, lineData.tabSize) - x - 1;
 						continue;
 					}
 
 					glyph = this._atlas.getGlyph(this._glyphRasterizer, chars, tokenMetadata);
 
 					// TODO: Support non-standard character widths
-					screenAbsoluteX = Math.round((x + xOffset) * viewLineOptions.spaceWidth * activeWindow.devicePixelRatio);
+					screenAbsoluteX = Math.round((x + xOffset) * viewLineOptions.spaceWidth * dpr);
 					screenAbsoluteY = (
 						Math.ceil((
 							// Top of line including line height
 							viewportData.relativeVerticalOffset[y - viewportData.startLineNumber] +
 							// Delta to top of line after line height
 							Math.floor((viewportData.lineHeight - this._context.configuration.options.get(EditorOption.fontSize)) / 2)
-						) * activeWindow.devicePixelRatio)
+						) * dpr)
 					);
 					zeroToOneX = screenAbsoluteX / this._canvas.width;
 					zeroToOneY = screenAbsoluteY / this._canvas.height;

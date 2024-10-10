@@ -3,12 +3,56 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import themePickerContent from './media/theme_picker.js';
+import notebookProfileContent from './media/notebookProfile.js';
 import { localize } from '../../../../nls.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { ThemeIcon } from '../../../../base/common/themables.js';
 import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
 import { NotebookSetting } from '../../notebook/common/notebookCommon.js';
 import { CONTEXT_ACCESSIBILITY_MODE_ENABLED } from '../../../../platform/accessibility/common/accessibility.js';
+import { URI } from '../../../../base/common/uri.js';
+
+interface IGettingStartedContentProvider {
+	(): string;
+}
+
+class GettingStartedContentProviderRegistry {
+
+	private readonly providers = new Map<string, IGettingStartedContentProvider>();
+
+	registerProvider(moduleId: string, provider: IGettingStartedContentProvider): void {
+		this.providers.set(moduleId, provider);
+	}
+
+	getProvider(moduleId: string): IGettingStartedContentProvider | undefined {
+		return this.providers.get(moduleId);
+	}
+}
+export const gettingStartedContentRegistry = new GettingStartedContentProviderRegistry();
+
+export async function moduleToContent(resource: URI): Promise<string> {
+	if (!resource.query) {
+		throw new Error('Getting Started: invalid resource');
+	}
+
+	const query = JSON.parse(resource.query);
+	if (!query.moduleId) {
+		throw new Error('Getting Started: invalid resource');
+	}
+
+	const provider = gettingStartedContentRegistry.getProvider(query.moduleId);
+	if (!provider) {
+		throw new Error(`Getting Started: no provider registered for ${query.moduleId}`);
+	}
+
+	return provider();
+}
+
+gettingStartedContentRegistry.registerProvider('vs/workbench/contrib/welcomeGettingStarted/common/media/theme_picker', themePickerContent);
+gettingStartedContentRegistry.registerProvider('vs/workbench/contrib/welcomeGettingStarted/common/media/notebookProfile', notebookProfileContent);
+// Register empty media for accessibility walkthrough
+gettingStartedContentRegistry.registerProvider('vs/workbench/contrib/welcomeGettingStarted/common/media/empty', () => '');
 
 const setupIcon = registerIcon('getting-started-setup', Codicon.zap, localize('getting-started-setup-icon', "Icon used for the setup category of welcome page"));
 const beginnerIcon = registerIcon('getting-started-beginner', Codicon.lightbulb, localize('getting-started-beginner-icon', "Icon used for the beginner category of welcome page"));
@@ -386,9 +430,23 @@ export const walkthroughs: GettingStartedWalkthroughContent = [
 					}
 				},
 				{
+					id: 'commandPaletteTaskAccessibility',
+					title: localize('gettingStarted.commandPaletteAccessibility.title', "Unlock productivity with the Command Palette "),
+					description: localize('gettingStarted.commandPaletteAccessibility.description.interpolated', "Run commands without reaching for your mouse to accomplish any task in VS Code.\n{0}", Button(localize('commandPalette', "Open Command Palette"), 'command:workbench.action.showCommands')),
+					media: { type: 'markdown', path: 'empty' },
+				},
+				{
+					id: 'keybindingsAccessibility',
+					title: localize('gettingStarted.keyboardShortcuts.title', "Customize your keyboard shortcuts"),
+					description: localize('gettingStarted.keyboardShortcuts.description.interpolated', "Once you have discovered your favorite commands, create custom keyboard shortcuts for instant access.\n{0}", Button(localize('keyboardShortcuts', "Keyboard Shortcuts"), 'command:toSide:workbench.action.openGlobalKeybindings')),
+					media: {
+						type: 'markdown', path: 'empty',
+					}
+				},
+				{
 					id: 'accessibilitySignals',
 					title: localize('gettingStarted.accessibilitySignals.title', "Fine tune which accessibility signals you want to receive via audio or a braille device"),
-					description: localize('gettingStarted.accessibilitySignals.description.interpolated', "Accessibility sounds and announcements are played around the workbench for different events.\n These can be discovered and configured using the List Signal Sounds and List Signal Announcements commands.\n{0}\n{1}", Button(localize('listSignalSounds', "List Signal Sounds"), 'command:signals.sounds.help'), Button(localize('listSignalAnnouncements', "List Signal Announcements"), 'command:signals.announcements.help')),
+					description: localize('gettingStarted.accessibilitySignals.description.interpolated', "Accessibility sounds and announcements are played around the workbench for different events.\n These can be discovered and configured using the List Signal Sounds and List Signal Announcements commands.\n{0}\n{1}", Button(localize('listSignalSounds', "List Signal Sounds"), 'command:signals.sounds.help'), Button(localize('listSignalAnnouncements', "List Signal Announcements"), 'command:accessibility.announcement.help')),
 					media: {
 						type: 'markdown', path: 'empty'
 					}
@@ -412,7 +470,7 @@ export const walkthroughs: GettingStartedWalkthroughContent = [
 				{
 					id: 'codeFolding',
 					title: localize('gettingStarted.codeFolding.title', "Use code folding to collapse blocks of code and focus on the code you're interested in."),
-					description: localize('gettingStarted.codeFolding.description.interpolated', "Fold or unfold a code section with the Toggle Fold command.\n{0}\n Fold or unfold recursively with the Toggle Fold Recursively Command\n{1}\n", Button(localize('toggleFold', "Toggle Fold"), 'command:editor.toggleFold'), Button(localize('toggleFoldRecursively', "Toggle Fold Recursively"), 'editor.toggleFoldRecursively')),
+					description: localize('gettingStarted.codeFolding.description.interpolated', "Fold or unfold a code section with the Toggle Fold command.\n{0}\n Fold or unfold recursively with the Toggle Fold Recursively Command\n{1}\n", Button(localize('toggleFold', "Toggle Fold"), 'command:editor.toggleFold'), Button(localize('toggleFoldRecursively', "Toggle Fold Recursively"), 'command:editor.toggleFoldRecursively')),
 					media: {
 						type: 'markdown', path: 'empty'
 					}
